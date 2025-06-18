@@ -18,7 +18,7 @@ set(LIBS)
 CPMAddPackage("gh:libsdl-org/SDL#8d60435")
 list(APPEND LIBS SDL3::SDL3)
 
-add_executable(${EXE_NAME} src/main.cpp )
+add_executable(${EXE_NAME} src/main.cpp src/mesh.cpp src/fvsolver.cpp)
 target_include_directories(${EXE_NAME} PRIVATE include/)
 target_compile_features(${EXE_NAME} PRIVATE cxx_std_23)
 target_link_libraries(${EXE_NAME} PRIVATE ${LIBS})
