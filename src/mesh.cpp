@@ -1,6 +1,6 @@
 #include "mesh.h"
 
-
+typedef Eigen::Vector2f vec2;
 /*
     https://web.archive.org/web/20130126163405/http://geomalgorithms.com/a03-_inclusion.html
     > 1. an upward edge includes its starting endpoint, and excludes its final endpoint;

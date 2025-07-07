@@ -4,19 +4,16 @@
 #include <utility>
 #include <Eigen/Dense>
 
-typedef Eigen::Vector2f vec2;
+#include "triangle.h"
 
-struct Edge {
-    vec2 a;
-    vec2 b;
 
-    Edge(vec2 a, vec2 b) : a(a), b(b) {}
-};
 
 constexpr float floatMax = std::numeric_limits<float>::max();
 constexpr float floatMin = std::numeric_limits<float>::min();
 
 struct Bound {
+    typedef Eigen::Vector2f vec2;
+
     vec2 min, max;
     Bound() : min(floatMax, floatMax), max(floatMin, floatMin) {}
     Bound(vec2 a) : min(a), max(a) {}
@@ -24,6 +21,8 @@ struct Bound {
 };
 
 inline Bound Union(const Bound& a, const Bound& b) {
+    typedef Eigen::Vector2f vec2;
+
     return Bound(vec2(std::min(a.min(0), b.min(0)),
                       std::min(a.min(1), b.min(1))),
                  vec2(std::max(a.max(0), b.max(0)),
@@ -69,7 +68,7 @@ struct CartesianMesh {
 //            =0 for P2  on the line
 //            <0 for P2  right of the line
 inline float
-isLeft(vec2 P0, vec2 P1, vec2 P2)
+isLeft(Eigen::Vector2f P0, Eigen::Vector2f P1, Eigen::Vector2f P2)
 {
     return ((P1(0) - P0(0)) * (P2(1) - P0(1))
         - (P2(0) - P0(0)) * (P1(1) - P0(1)));
@@ -77,7 +76,7 @@ isLeft(vec2 P0, vec2 P1, vec2 P2)
 
 // tests if a point is in a polygon
 // https://web.archive.org/web/20130126163405/http://geomalgorithms.com/a03-_inclusion.html
-bool testPointInPoly(const vec2& P, const std::vector<Edge>& edges);
+bool testPointInPoly(const Eigen::Vector2f& P, const std::vector<Edge>& edges);
 
 // converts set of points to sets of edges  
-std::vector<Edge> pointVecToEdge(const std::vector<vec2>& points);
+std::vector<Edge> pointVecToEdge(const std::vector<Eigen::Vector2f>& points);
