@@ -2,22 +2,7 @@
 
 #include <algorithm>
 
-bool pointInCircle(
-    const vec2& P,
-    const vec2& A,
-    const vec2& B,
-    const vec2& C
-)
-{
-    using namespace Eigen;
-    const Matrix4f testMat{
-        {A(0), A(1), A(0) * A(0) + A(1) * A(1), 1},
-        {B(0), B(1), B(0) * B(0) + B(1) * B(1), 1},
-        {C(0), C(1), C(0) * C(0) + C(1) * C(1), 1},
-        {P(0), P(1), P(0) * P(0) + P(1) * P(1), 1},
-    };
-    return testMat.determinant() > 0;
-}
+
 
 QuartEdge::QuartEdge(
     vec2 start, vec2 end,
@@ -41,15 +26,6 @@ QuartEdge::QuartEdge(
     prevRot->next = rot;
 }
 
-void swapNexts(QuartEdge* a, QuartEdge* b) {
-    std::swap(a->next, b->next);
-}
-
-void splice(QuartEdge* a, QuartEdge* b) {
-    swapNexts(a->next->rot, b->next->rot);
-    swapNexts(a, b);
-}
-
 
 void makeTriangle(
     const vec2& A,
@@ -70,7 +46,7 @@ void makeTriangle(
 
 void connect(QuartEdge* newEdge, QuartEdge* a, QuartEdge* b) {
     setStartEnd(newEdge, a->getDest(), b->origin);
-    splice(newEdge, a->getPolyNext());
+    splice(newEdge, a->getPolyLNext());
     splice(newEdge->getSym(), b);
 }
 
@@ -78,18 +54,82 @@ void sever(QuartEdge* a) {
     splice(a, a->getPrev());
     splice(a->getSym(), a->getSym()->getPrev());
 }
-#include<print>
+
 void flip(QuartEdge* edge) {
     auto a = edge->getPrev();
     auto b = edge->getSym()->getPrev();
-    std::print("{} {} {} {} {}", edge->getSym()->getOrigin(), a->getOrigin(), a->getDest(), b->getOrigin(), b->getDest());
     
     // severs edge from a and b->getSym()
     sever(edge);
 
     // flips edge
-    connect(edge, a, b->getPolyNext());
+    connect(edge, a, b->getPolyLNext());
 
     // updates origin and dest
     setStartEnd(edge, a->getDest(), b->getDest());
+}
+
+void insertPoint(QuadEdge* memoryptr, QuartEdge* polyEdge, const vec2& P) {
+    const auto firstSpoke = memoryptr;
+    setStartEnd(&memoryptr->edge, polyEdge->getOrigin(), P);
+
+    splice(&memoryptr->edge, polyEdge);
+    do {
+        const auto newSpoke = memoryptr+1;
+        connect(&(newSpoke)->edge, polyEdge, memoryptr->edge.getSym());
+        polyEdge = newSpoke->edge.getPrev();
+        memoryptr = newSpoke;
+    } while (polyEdge->getPolyLNext() != &firstSpoke->edge);
+}
+
+bool checkEdgeBoundaryAware(const QuartEdge* const edge, QuartEdge* bound1) {
+    for (int i = 0; i < 3; ++i) {
+        // checks if edge is a boundary edge
+        if (edge == bound1 || edge == bound1->getSym())
+            return false;
+
+        // edge connects to boundary vertex
+        if (edge->origin == bound1->origin || edge->getDest() == bound1->origin) {
+            const bool flipIntersectsEdge = lineSegmentIntersects(
+                edge->origin, edge->getDest(),
+                edge->getNext()->getDest(), edge->getPrev()->getDest()
+            );
+            // if the flipped edge does not intersect the original, an inside out triangle will be created
+            // when the edge is flipped
+            if (!flipIntersectsEdge)
+                return false;
+            else return true;
+        }
+
+        // flipped edge connects to boundary vertex
+        const bool flipTouchesBoundary = edge->getNext()->getDest() == bound1->origin ||
+            edge->getSym()->getNext()->getDest() == bound1->origin;
+        if (flipTouchesBoundary)
+            return false;
+        bound1 = bound1->getPolyRNext();
+    }
+    return checkEdge(edge);
+}
+
+
+bool searchForTriangle(QuartEdge const *& startingEdge, const vec2& point) {
+    bool isPrevEdgeChecked = false;
+    QuartEdge const* currentEdge = startingEdge;
+
+    while (startingEdge != currentEdge || !isPrevEdgeChecked) {
+        const float leftness = pointLeftnessOfEdge(currentEdge, point);
+        if (leftness == 0.f) {
+            return false;
+        }
+        else if (leftness > 0.f) {
+            currentEdge = currentEdge->getPolyLNext();
+            isPrevEdgeChecked = true;
+        }
+        else if (leftness < 0.f) {
+            currentEdge = currentEdge->getSym();
+            startingEdge = currentEdge;
+            isPrevEdgeChecked = false;
+        }
+    }
+    return true;
 }

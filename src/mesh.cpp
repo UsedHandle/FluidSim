@@ -12,7 +12,7 @@ typedef Eigen::Vector2f vec2;
     slanting downwards it subtracts one from the winding number, and an upwards
     Edge adds one to the WN
 */
-bool testPointInPoly(const vec2& P, const std::vector<Edge>& edges) {
+bool testPointInPoly(const Eigen::Vector2f& P, const std::vector<Edge>& edges) {
     int wn = 0;
     for (const Edge& edge : edges) {
         const vec2& a = edge.a;

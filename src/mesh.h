@@ -61,17 +61,11 @@ struct CartesianMesh {
     constexpr size_t size() const { return faceIDs.size(); }
 };
 
+// mathmatically identical implementation to:
 // https://web.archive.org/web/20130126163405/http://geomalgorithms.com/a03-_inclusion.html
-// isLeft(): tests if a point is Left|On|Right of an infinite line.
-//    Input:  three points P0, P1, and P2
-//    Return: >0 for P2 left of the line through P0 and P1
-//            =0 for P2  on the line
-//            <0 for P2  right of the line
-inline float
-isLeft(Eigen::Vector2f P0, Eigen::Vector2f P1, Eigen::Vector2f P2)
-{
-    return ((P1(0) - P0(0)) * (P2(1) - P0(1))
-        - (P2(0) - P0(0)) * (P1(1) - P0(1)));
+// returns positive number if left of, negative if right of, or 0 if on an segment from A to B
+inline float isLeft(const vec2& A, const vec2& B, const vec2& P) {
+    return pointLeftnessOfSegment(A, B, P);
 }
 
 // tests if a point is in a polygon
