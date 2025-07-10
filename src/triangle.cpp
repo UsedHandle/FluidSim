@@ -76,6 +76,7 @@ void insertPoint(QuadEdge* memoryptr, QuartEdge* polyEdge, const vec2& P) {
     splice(&memoryptr->edge, polyEdge);
     do {
         const auto newSpoke = memoryptr+1;
+        // memoryptr is the previous spoke created
         connect(&(newSpoke)->edge, polyEdge, memoryptr->edge.getSym());
         polyEdge = newSpoke->edge.getPrev();
         memoryptr = newSpoke;
@@ -111,25 +112,3 @@ bool checkEdgeBoundaryAware(const QuartEdge* const edge, QuartEdge* bound1) {
     return checkEdge(edge);
 }
 
-
-bool searchForTriangle(QuartEdge const *& startingEdge, const vec2& point) {
-    bool isPrevEdgeChecked = false;
-    QuartEdge const* currentEdge = startingEdge;
-
-    while (startingEdge != currentEdge || !isPrevEdgeChecked) {
-        const float leftness = pointLeftnessOfEdge(currentEdge, point);
-        if (leftness == 0.f) {
-            return false;
-        }
-        else if (leftness > 0.f) {
-            currentEdge = currentEdge->getPolyLNext();
-            isPrevEdgeChecked = true;
-        }
-        else if (leftness < 0.f) {
-            currentEdge = currentEdge->getSym();
-            startingEdge = currentEdge;
-            isPrevEdgeChecked = false;
-        }
-    }
-    return true;
-}

@@ -42,32 +42,39 @@ struct QuartEdge {
 
     // returns the (dual) edge from the right to the left side
     // of the current edge
-    inline QuartEdge* getRot() const { return rot; }
+    inline QuartEdge* getRot() { return rot; }
+    inline const QuartEdge* getRot() const { return rot; }
 
     // returns the edge with the same origin to the left of the current edge
-    inline QuartEdge* getNext() const { return next; }
+    inline QuartEdge* getNext() { return next; }
+    inline const QuartEdge* getNext() const { return next; }
 
     // equivalent to two rotations
     // reverses direction of the edge
-    inline QuartEdge* getSym() const { return rot->rot; }
+    inline QuartEdge* getSym() { return rot->rot; }
+    inline const QuartEdge* getSym() const { return rot->rot; }
 
     // returns the edge with the same origin to the right of the current edge
-    inline QuartEdge* getPrev() const { return rot->next->rot;}
+    inline QuartEdge* getPrev() { return rot->next->rot;}
+    inline const QuartEdge* getPrev() const { return rot->next->rot; }
 
     // gets previous rotation
-    inline QuartEdge* getPrevRot() const { return rot->rot->rot; }
+    inline QuartEdge* getPrevRot() { return rot->rot->rot; }
+    inline const QuartEdge* getPrevRot() const { return rot->rot->rot; }
 
     // Gets the edge that originates from this's dest and is connected to the face on this's left side
-    inline QuartEdge* getPolyLNext() const { return getPrevRot()->next->rot; };
-    
+    inline QuartEdge* getPolyLNext() { return getPrevRot()->next->rot; };
+    inline const QuartEdge* getPolyLNext() const { return getPrevRot()->next->rot; };
+
     // Gets the edge that originates from this's dest and is connected to the face on this's right side
-    inline QuartEdge* getPolyRNext() const { return rot->getPrev()->getPrevRot(); };
+    inline QuartEdge* getPolyRNext() { return rot->getPrev()->getPrevRot(); };
+    inline const QuartEdge* getPolyRNext() const { return rot->getPrev()->getPrevRot(); };
 
-    inline const vec2& getOrigin() const { return origin; }
     inline vec2& getOrigin() { return origin; }
+    inline const vec2& getOrigin() const { return origin; }
 
-    inline const vec2& getDest() const { return getSym()->origin; }
     inline vec2& getDest() { return getSym()->origin; }
+    inline const vec2& getDest() const { return getSym()->origin; }
 
     // initializes pointers with nullptr and origin with vec2(0.f, 0.f)
     QuartEdge() : next(nullptr), rot(nullptr), origin(0.f, 0.f) { }
@@ -126,6 +133,8 @@ void connect(QuartEdge* newEdge, QuartEdge* a, QuartEdge* b);
 void sever(QuartEdge* a);
 
 // flips diagonal edge of quadrilateral for delaunay triangulation
+// the edge's origin is set to the point on its right (edge->getPrev()->getDest())
+// the edge's dest is set to the point on its left (edge->getSym()->getPrev()->getDest())
 void flip(QuartEdge* edge);
 
 // places point in polygon and connects edges from the vertices of the polygon to the point
@@ -176,5 +185,25 @@ bool checkEdgeBoundaryAware(const QuartEdge* const edge, QuartEdge* bound1);
 // returns false if point lies on an edge and true if search is successful
 // starting edge is set to the edge of the triangle that contains the point,
 // so that the edge's left side is the triangle's interior
-// or it is set to the edge the point lies on if two triangles border the point
-bool searchForTriangle(QuartEdge*& const startingEdge, const vec2& point);
+template<typename QuartEdgePtr>
+std::pair<bool, QuartEdgePtr> searchForTriangle(QuartEdgePtr startingEdge, const vec2& point) {
+    bool isPrevEdgeChecked = false;
+    auto* currentEdge = startingEdge;
+
+    while (startingEdge != currentEdge || !isPrevEdgeChecked) {
+        const float leftness = pointLeftnessOfEdge(currentEdge, point);
+        if (leftness == 0.f) {
+            return { false, currentEdge };
+        }
+        else if (leftness > 0.f) {
+            currentEdge = currentEdge->getPolyLNext();
+            isPrevEdgeChecked = true;
+        }
+        else if (leftness < 0.f) {
+            currentEdge = currentEdge->getSym();
+            startingEdge = currentEdge;
+            isPrevEdgeChecked = false;
+        }
+    }
+    return { true, currentEdge };
+}
