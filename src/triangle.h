@@ -140,7 +140,8 @@ void flip(QuartEdge* edge);
 // places point in polygon and connects edges from the vertices of the polygon to the point
 // the added edges are assigned to memory sequentially
 // P must be to the left of polyEdge
-void insertPoint(QuadEdge* memoryptr, QuartEdge* polyEdge, const vec2& P);
+// returns the amount of edges created
+size_t insertPoint(QuadEdge* memoryptr, QuartEdge* polyEdge, const vec2& P);
 
 
 // returns positive number if left of, negative if right of, or 0 if on an segment from A to B
@@ -183,7 +184,7 @@ bool checkEdgeBoundaryAware(const QuartEdge* const edge, QuartEdge* bound1);
 
 // will be stuck in infinite loop if the point is not bordering or inside a triangle
 // returns false if point lies on an edge and true if search is successful
-// starting edge is set to the edge of the triangle that contains the point,
+// the second part of the pair is set to the edge that contains the point
 // so that the edge's left side is the triangle's interior
 template<typename QuartEdgePtr>
 std::pair<bool, QuartEdgePtr> searchForTriangle(QuartEdgePtr startingEdge, const vec2& point) {
@@ -207,3 +208,12 @@ std::pair<bool, QuartEdgePtr> searchForTriangle(QuartEdgePtr startingEdge, const
     }
     return { true, currentEdge };
 }
+
+
+// finds triangle by starting at searchStart,
+// inserts point and the edges connected to the point and makes edges added delaunay,
+// bound1 is an edge of the infinitely large triangle where its left side points to the inside of the triangle
+// memoryptr is the a pointer to an array where new edges can be created and should be an array of at least size of 4
+// because 4 edges created when an edge is between two triangles
+// the functions returns the amount of edges created and an edge of a triangle for which the point was contained in or bordering
+std::pair<size_t, QuartEdge*> insertPointDelaunay(QuadEdge* memoryptr, QuartEdge* searchStart, QuartEdge* bound1, const vec2& point);

@@ -69,10 +69,11 @@ void flip(QuartEdge* edge) {
     setStartEnd(edge, a->getDest(), b->getDest());
 }
 
-void insertPoint(QuadEdge* memoryptr, QuartEdge* polyEdge, const vec2& P) {
+size_t insertPoint(QuadEdge* memoryptr, QuartEdge* polyEdge, const vec2& P) {
     const auto firstSpoke = memoryptr;
     setStartEnd(&memoryptr->edge, polyEdge->getOrigin(), P);
 
+    size_t edgesCreated = 1;
     splice(&memoryptr->edge, polyEdge);
     do {
         const auto newSpoke = memoryptr+1;
@@ -80,7 +81,9 @@ void insertPoint(QuadEdge* memoryptr, QuartEdge* polyEdge, const vec2& P) {
         connect(&(newSpoke)->edge, polyEdge, memoryptr->edge.getSym());
         polyEdge = newSpoke->edge.getPrev();
         memoryptr = newSpoke;
+        ++edgesCreated;
     } while (polyEdge->getPolyLNext() != &firstSpoke->edge);
+    return edgesCreated;
 }
 
 bool checkEdgeBoundaryAware(const QuartEdge* const edge, QuartEdge* bound1) {
@@ -112,3 +115,26 @@ bool checkEdgeBoundaryAware(const QuartEdge* const edge, QuartEdge* bound1) {
     return checkEdge(edge);
 }
 
+std::pair<size_t, QuartEdge*> insertPointDelaunay(QuadEdge* memoryPtr, QuartEdge* searchStart, QuartEdge* bound1, const vec2& point) {
+    QuartEdge* polyBound;
+
+    auto results = searchForTriangle(searchStart, point);
+    if (!std::get<bool>(results)) {
+        polyBound = results.second->getPrev();
+        sever(results.second);
+    }
+    else {
+        polyBound = results.second;
+    }
+    size_t edgesCreated = insertPoint(memoryPtr, polyBound, point);
+    QuartEdge* firstEdge = polyBound;
+    do {
+        if (checkEdgeBoundaryAware(polyBound, bound1)) {
+            flip(polyBound);
+            polyBound = polyBound->getNext()->getSym();
+            continue;
+        }
+        polyBound = polyBound->getPolyLNext()->getPrev();
+    } while (polyBound->getPolyLNext()->getPrev() != firstEdge);
+    return { edgesCreated, firstEdge };
+}
