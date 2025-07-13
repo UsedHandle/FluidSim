@@ -3,7 +3,6 @@
 #include <algorithm>
 
 
-
 QuartEdge::QuartEdge(
     vec2 start, vec2 end,
     QuartEdge* _rot,
@@ -122,12 +121,30 @@ std::pair<size_t, QuartEdge*> insertPointDelaunay(QuadEdge* memoryPtr, QuartEdge
     if (!std::get<bool>(results)) {
         polyBound = results.second->getPrev();
         sever(results.second);
+        setStartEnd(results.second, vec2(nanf("0"), nanf("0")), vec2(nanf("0"), nanf("0")));
     }
     else {
         polyBound = results.second;
     }
     size_t edgesCreated = insertPoint(memoryPtr, polyBound, point);
+
     QuartEdge* firstEdge = polyBound;
+    // makes sure that firstEdge is unflippable
+    while (checkEdgeBoundaryAware(firstEdge, bound1)) {
+        flip(firstEdge);
+        firstEdge = firstEdge->getNext()->getSym();
+    }
+    polyBound = firstEdge->getPolyLNext()->getPrev();
+    // loops around ring
+    while (polyBound != firstEdge) {
+        if (checkEdgeBoundaryAware(polyBound, bound1)) {
+            flip(polyBound);
+            polyBound = polyBound->getNext()->getSym();
+            continue;
+        }
+        polyBound = polyBound->getPolyLNext()->getPrev();
+    }
+    /*
     do {
         if (checkEdgeBoundaryAware(polyBound, bound1)) {
             flip(polyBound);
@@ -135,6 +152,23 @@ std::pair<size_t, QuartEdge*> insertPointDelaunay(QuadEdge* memoryPtr, QuartEdge
             continue;
         }
         polyBound = polyBound->getPolyLNext()->getPrev();
-    } while (polyBound->getPolyLNext()->getPrev() != firstEdge);
+    } while (polyBound != firstEdge);*/
     return { edgesCreated, firstEdge };
+}
+
+bool isPointInBoundaryTriangle(const vec2& point, QuartEdge* bound1) {
+    for (int i = 0; i < 3; ++i) {
+        if (pointLeftnessOfEdge(bound1, point) > 0)
+            continue;
+        return false;
+    }
+    return true;
+}
+
+std::array<vec2, 3> getTriPoints(QuartEdge* bound) {
+    return std::array<vec2, 3>{
+        bound->getOrigin(),
+        bound->getPolyLNext()->getOrigin(),
+        bound->getPolyLNext()->getPolyLNext()->getOrigin()
+    };
 }

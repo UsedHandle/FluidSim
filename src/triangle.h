@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <iterator>
 
 #include <Eigen/Dense>
 
@@ -95,7 +96,7 @@ struct QuadEdge {
         };
     };
 
-    QuadEdge(vec2 start = vec2(0.f, 0.f), vec2 end = vec2(0.f, 0.f))
+    QuadEdge(vec2 start = vec2(nanf("0"), nanf("0")), vec2 end = vec2(nanf("0"), nanf("0")))
         : edge(QuartEdge(start, end, &rot, &sym, &prevRot)) {}
 };
 
@@ -168,20 +169,6 @@ inline float pointLeftnessOfEdge(const QuartEdge* const edge, const vec2& P) {
     return pointLeftnessOfSegment(edge->origin, edge->getDest(), P);
 }
 
-// returns true if the edge is locally Delaunay
-inline bool checkEdge(const QuartEdge* const edge) {
-    const vec2& A = edge->getOrigin();
-    const vec2& B = edge->getNext()->getDest();
-    const vec2& C = edge->getDest();
-
-    const vec2& P = edge->getPrev()->getDest();
-    return !pointInCircle(P, A, B, C);
-}
-
-// checks if edge should be flipped
-// bound1 is an "infinite" bounding triangle where its left side is the inside of the triangle
-bool checkEdgeBoundaryAware(const QuartEdge* const edge, QuartEdge* bound1);
-
 // will be stuck in infinite loop if the point is not bordering or inside a triangle
 // returns false if point lies on an edge and true if search is successful
 // the second part of the pair is set to the edge that contains the point
@@ -217,3 +204,65 @@ std::pair<bool, QuartEdgePtr> searchForTriangle(QuartEdgePtr startingEdge, const
 // because 4 edges created when an edge is between two triangles
 // the functions returns the amount of edges created and an edge of a triangle for which the point was contained in or bordering
 std::pair<size_t, QuartEdge*> insertPointDelaunay(QuadEdge* memoryptr, QuartEdge* searchStart, QuartEdge* bound1, const vec2& point);
+
+// should be at least 4 edges for every point as a point may be on the boundary of a triangle in a rare case
+// bound1 is an edge of the infinitely large triangle where its left side points to the inside of the triangle
+// memoryptr is the a pointer to an array where new edges can be created and should be an array of at least size of 4*points.size()
+// returns the amount of edges created
+// will stall indefinitely if a point is not contained in the bounding triangle
+template<typename InIter>
+size_t insertPointsDelaunay(QuadEdge* memoryptr, QuartEdge* searchStart, QuartEdge* bound1, const InIter& PointBegin, const InIter& PointEnd) {
+    size_t edgesAdded = 0;
+    for (auto it = PointBegin; it != PointEnd; ++it) {
+        auto results = insertPointDelaunay(memoryptr, searchStart, bound1, *it);
+        memoryptr += results.first;
+        edgesAdded += results.first;
+        searchStart = results.second;
+    }
+    return edgesAdded;
+}
+
+// returns true if the edge is locally Delaunay
+inline bool checkEdge(const QuartEdge* const edge) {
+    const vec2& A = edge->getOrigin();
+    const vec2& B = edge->getNext()->getDest();
+    const vec2& C = edge->getDest();
+
+    const vec2& P = edge->getPrev()->getDest();
+    return !pointInCircle(P, A, B, C);
+}
+
+// checks if edge should be flipped
+// bound1 is an "infinite" bounding triangle where its left side is the inside of the triangle
+bool checkEdgeBoundaryAware(const QuartEdge* const edge, QuartEdge* bound1);
+
+// checks array of quad edges and returns a vector of 
+// bound1 is an edge of the infinitely large triangle where its left side points to the inside of the triangle
+template<typename InIter>
+std::vector<bool> checkEdgesBoundaryAware(const InIter& QuadEdgeBegin, const InIter& QuadEdgeEnd, QuartEdge* bound1) {
+    std::vector<bool> results;
+    results.resize(std::distance(QuadEdgeBegin, QuadEdgeEnd));
+    for (auto it = QuadEdgeBegin; it != QuadEdgeEnd; ++it)
+        results[std::distance(QuadEdgeBegin, it)] = checkEdgeBoundaryAware(&it->edge, bound1);
+    return results;
+}
+
+bool isPointInBoundaryTriangle(const vec2& point, QuartEdge* bound1);
+
+inline vec2 getCircumcenter(const vec2& A, const vec2& B, const vec2& C) {
+    return Eigen::Matrix2f{
+        { -2.f * A(0) + 2.f * B(0), -2.f * A(1) + 2.f * B(1) },
+        { -2.f * B(0) + 2.f * C(0), -2.f * B(1) + 2.f * C(1) },
+    }.colPivHouseholderQr().solve(Eigen::Vector2f{
+        -(A(0) * A(0)) - A(1) * A(1) + B(0) * B(0) + B(1) * B(1),
+        -(B(0) * B(0)) - B(1) * B(1) + C(0) * C(0) + C(1) * C(1)
+     });
+}
+
+inline float getCircumcircleRadius(const vec2& A, const vec2& B, const vec2& C) {
+    return (A - getCircumcenter(A, B, C)).norm();
+}
+
+// returns the three points of a triangle
+// bound is an edge of the triangle where the left side is the interior of the triangle
+std::array<vec2, 3> getTriPoints(QuartEdge* bound);
