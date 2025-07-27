@@ -25,6 +25,60 @@ QuartEdge::QuartEdge(
     prevRot->next = rot;
 }
 
+/*
+QuartEdge::QuartEdge(QuartEdge&& other) noexcept :
+    origin(std::move(other.origin)),
+    next(std::move(other.next)),
+    rot(std::move(other.rot))
+{
+    if(getPrev() != &other)
+        getPrev()->next = this;
+    else {
+        rot->next->rot = this;
+        next = this;
+    }
+    getPrevRot()->rot = this;
+}
+
+QuartEdge& QuartEdge::operator=(QuartEdge&& other) noexcept {
+    if (this != &other) {
+        origin = std::move(other.origin);
+        next = std::move(other.next);
+        rot = std::move(other.rot);
+        getPrev()->next = this;
+        getPrevRot()->rot = this;
+
+        other.origin = vec2(nanf("0"), nanf("0"));
+        other.rot = nullptr;
+        other.next = nullptr;
+    }
+
+    return *this;
+}*/
+QuadEdge::QuadEdge(QuadEdge&& other) noexcept
+    : edge(QuartEdge(other.edge.origin, other.sym.origin, &rot, &sym, &prevRot)){
+    splice(&edge, &other.edge);
+    splice(other.edge.getPrev(), &other.edge);
+    splice(&sym, &other.sym);
+    splice(other.sym.getPrev(), &other.sym);
+}
+
+QuadEdge& QuadEdge::operator=(QuadEdge&& other) noexcept {
+    if (this != &other){
+        edge.origin = std::move(other.edge.origin);
+        sym.origin = std::move(other.sym.origin);
+        splice(&edge, &other.edge);
+        splice(other.edge.getPrev(), &other.edge);
+        splice(&sym, &other.sym);
+        splice(other.sym.getPrev(), &other.sym);
+    }
+    
+    return *this;
+}
+
+QuadEdge::~QuadEdge() {
+    destroy(&edge);
+}
 
 void makeTriangle(
     const vec2& A,
@@ -120,8 +174,7 @@ std::pair<size_t, QuartEdge*> insertPointDelaunay(QuadEdge* memoryPtr, QuartEdge
     auto results = searchForTriangle(searchStart, point);
     if (!std::get<bool>(results)) {
         polyBound = results.second->getPrev();
-        sever(results.second);
-        setStartEnd(results.second, vec2(nanf("0"), nanf("0")), vec2(nanf("0"), nanf("0")));
+        destroy(results.second);
     }
     else {
         polyBound = results.second;
@@ -144,15 +197,7 @@ std::pair<size_t, QuartEdge*> insertPointDelaunay(QuadEdge* memoryPtr, QuartEdge
         }
         polyBound = polyBound->getPolyLNext()->getPrev();
     }
-    /*
-    do {
-        if (checkEdgeBoundaryAware(polyBound, bound1)) {
-            flip(polyBound);
-            polyBound = polyBound->getNext()->getSym();
-            continue;
-        }
-        polyBound = polyBound->getPolyLNext()->getPrev();
-    } while (polyBound != firstEdge);*/
+
     return { edgesCreated, firstEdge };
 }
 

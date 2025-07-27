@@ -78,13 +78,17 @@ struct QuartEdge {
     inline const vec2& getDest() const { return getSym()->origin; }
 
     // initializes pointers with nullptr and origin with vec2(0.f, 0.f)
-    QuartEdge() : next(nullptr), rot(nullptr), origin(0.f, 0.f) { }
+    QuartEdge() : next(nullptr), rot(nullptr), origin(nanf("0"), nanf("0")) {}
     QuartEdge(
         vec2 start, vec2 end,
         QuartEdge* _rot = new QuartEdge(),
         QuartEdge* sym = new QuartEdge(),
         QuartEdge* prevRot = new QuartEdge()
     );
+    /*
+    QuartEdge(QuartEdge&& other) noexcept;
+    QuartEdge& operator=(QuartEdge&& other) noexcept;*/
+
 };
 
 // contains original edge, rot, sym, and prevRot
@@ -98,6 +102,11 @@ struct QuadEdge {
 
     QuadEdge(vec2 start = vec2(nanf("0"), nanf("0")), vec2 end = vec2(nanf("0"), nanf("0")))
         : edge(QuartEdge(start, end, &rot, &sym, &prevRot)) {}
+
+    QuadEdge(QuadEdge&& other) noexcept;
+
+    QuadEdge& operator=(QuadEdge&& other) noexcept;
+    ~QuadEdge();
 };
 
 inline void
@@ -127,11 +136,18 @@ void makeTriangle(
 );
 
 // places edge between a and b and connects dual edges
+// a's and b's left side become newEdge's left side
 void connect(QuartEdge* newEdge, QuartEdge* a, QuartEdge* b);
 
 
 // removes edges connected to a and reverses connect
 void sever(QuartEdge* a);
+
+// disconnects edge with sever an changes origin and destination of edge
+inline void destroy(QuartEdge* a) {
+    sever(a);
+    setStartEnd(a, vec2(nanf("0"), nanf("0")), vec2(nanf("0"), nanf("0")));
+}
 
 // flips diagonal edge of quadrilateral for delaunay triangulation
 // the edge's origin is set to the point on its right (edge->getPrev()->getDest())
